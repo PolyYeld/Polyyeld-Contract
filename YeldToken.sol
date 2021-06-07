@@ -386,6 +386,8 @@ contract BEP20 is Context, IBEP20, Ownable {
     mapping(address => mapping(address => uint256)) private _allowances;
 
     uint256 private _totalSupply;
+    uint256 private MAXCAP;
+    uint256 constant MAXCAPSUPPLY=62100*10**18;
 
     string private _name;
     string private _symbol;
@@ -441,6 +443,11 @@ contract BEP20 is Context, IBEP20, Ownable {
     function totalSupply() public override view returns (uint256) {
         return _totalSupply;
     }
+    
+     function maxSupply() public  pure returns (uint256) {
+        return MAXCAPSUPPLY;
+    }
+
 
     /**
      * @dev See {BEP20-balanceOf}.
@@ -586,8 +593,10 @@ contract BEP20 is Context, IBEP20, Ownable {
      */
     function _mint(address account, uint256 amount) internal {
         require(account != address(0), 'BEP20: mint to the zero address');
+        require(MAXCAP<=MAXCAPSUPPLY,"Max supply reached");
 
         _totalSupply = _totalSupply.add(amount);
+        MAXCAP=MAXCAP.add(amount);
         _balances[account] = _balances[account].add(amount);
         emit Transfer(address(0), account, amount);
     }
@@ -644,7 +653,7 @@ contract BEP20 is Context, IBEP20, Ownable {
     }
 }
 
-// File: contracts/GoldToken.sol
+
 
 // SPDX-License-Identifier: MIT
 
