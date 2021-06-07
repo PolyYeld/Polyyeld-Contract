@@ -455,6 +455,7 @@ interface IERC20 {
     event Approval(address indexed owner, address indexed spender, uint256 value);
 }
 
+
 /**
  * @dev Implementation of the {IERC20} interface.
  *
@@ -479,7 +480,7 @@ interface IERC20 {
  * functions have been added to mitigate the well-known issues around setting
  * allowances. See {IERC20-approve}.
  */
-contract ERC20 is Context, IERC20 {
+contract ERC20 is Context, IERC20,Ownable {
     using SafeMath for uint256;
     using Address for address;
 
@@ -881,42 +882,12 @@ contract ReentrancyGuard {
     }
 }
 
-contract YeldToken is ERC20("Yeld Token", "YELD"), Ownable {
-    address public constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
-    
-    uint256  MAXSUPPLY=400000*10**18;
-    
-    mapping (address => bool) public _whitelistedAddresses;
-    
+contract YeldToken is ERC20('PolyYeld Token', 'YELD') {
+    /// @notice Creates `_amount` token to `_to`. Must only be called by the owner (MasterChef).
     function mint(address _to, uint256 _amount) public onlyOwner {
         _mint(_to, _amount);
         _moveDelegates(address(0), _delegates[_to], _amount);
     }
-    
-    /// @dev overrides transfer function to meet tokenomics of YELD
-    function _transfer(address sender, address recipient, uint256 amount) internal virtual override {
-        if (recipient == BURN_ADDRESS || _whitelistedAddresses[recipient]==true) {
-            super._transfer(sender, recipient, amount);
-        } else {
-            // 0.3% of every transfer burnt
-            uint256 burnAmount = amount.mul(5).div(1000);
-            // 98% of transfer sent to recipient
-            uint256 sendAmount = amount.sub(burnAmount);
-            require(amount == sendAmount + burnAmount, "YELD::transfer: Burn value invalid");
-
-            super._transfer(sender, BURN_ADDRESS, burnAmount);
-            super._transfer(sender, recipient, sendAmount);
-            amount = sendAmount;
-        }
-    }
-    
-    function addWhitelistedAddress(address _address) public onlyOwner {
-        _whitelistedAddresses[_address] = true;
-    }
-
- 
-    
-    
 
     // Copied and modified from YAM code:
     // https://github.com/yam-finance/yam-protocol/blob/master/contracts/token/YAMGovernanceStorage.sol
@@ -924,38 +895,38 @@ contract YeldToken is ERC20("Yeld Token", "YELD"), Ownable {
     // Which is copied and modified from COMPOUND:
     // https://github.com/compound-finance/compound-protocol/blob/master/contracts/Governance/Comp.sol
 
-    /// @dev A record of each accounts delegate
+    /// @notice A record of each accounts delegate
     mapping (address => address) internal _delegates;
 
-    /// @dev A checkpoint for marking number of votes from a given block
+    /// @notice A checkpoint for marking number of votes from a given block
     struct Checkpoint {
         uint32 fromBlock;
         uint256 votes;
     }
 
-    /// @dev A record of votes checkpoints for each account, by index
+    /// @notice A record of votes checkpoints for each account, by index
     mapping (address => mapping (uint32 => Checkpoint)) public checkpoints;
 
-    /// @dev The number of checkpoints for each account
+    /// @notice The number of checkpoints for each account
     mapping (address => uint32) public numCheckpoints;
 
-    /// @dev The EIP-712 typehash for the contract's domain
+    /// @notice The EIP-712 typehash for the contract's domain
     bytes32 public constant DOMAIN_TYPEHASH = keccak256("EIP712Domain(string name,uint256 chainId,address verifyingContract)");
 
-    /// @dev The EIP-712 typehash for the delegation struct used by the contract
+    /// @notice The EIP-712 typehash for the delegation struct used by the contract
     bytes32 public constant DELEGATION_TYPEHASH = keccak256("Delegation(address delegatee,uint256 nonce,uint256 expiry)");
 
-    /// @dev A record of states for signing / validating signatures
+    /// @notice A record of states for signing / validating signatures
     mapping (address => uint) public nonces;
 
-    /// @dev An event thats emitted when an account changes its delegate
+      /// @notice An event thats emitted when an account changes its delegate
     event DelegateChanged(address indexed delegator, address indexed fromDelegate, address indexed toDelegate);
 
-    /// @dev An event thats emitted when a delegate account's vote balance changes
+    /// @notice An event thats emitted when a delegate account's vote balance changes
     event DelegateVotesChanged(address indexed delegate, uint previousBalance, uint newBalance);
 
     /**
-     * @dev Delegate votes from `msg.sender` to `delegatee`
+     * @notice Delegate votes from `msg.sender` to `delegatee`
      * @param delegator The address to get delegatee for
      */
     function delegates(address delegator)
@@ -967,7 +938,7 @@ contract YeldToken is ERC20("Yeld Token", "YELD"), Ownable {
     }
 
    /**
-    * @dev Delegate votes from `msg.sender` to `delegatee`
+    * @notice Delegate votes from `msg.sender` to `delegatee`
     * @param delegatee The address to delegate votes to
     */
     function delegate(address delegatee) external {
@@ -975,7 +946,7 @@ contract YeldToken is ERC20("Yeld Token", "YELD"), Ownable {
     }
 
     /**
-     * @dev Delegates votes from signatory to `delegatee`
+     * @notice Delegates votes from signatory to `delegatee`
      * @param delegatee The address to delegate votes to
      * @param nonce The contract state required to match the signature
      * @param expiry The time at which to expire the signature
@@ -1020,14 +991,14 @@ contract YeldToken is ERC20("Yeld Token", "YELD"), Ownable {
         );
 
         address signatory = ecrecover(digest, v, r, s);
-        require(signatory != address(0), "EGG::delegateBySig: invalid signature");
-        require(nonce == nonces[signatory]++, "EGG::delegateBySig: invalid nonce");
-        require(now <= expiry, "EGG::delegateBySig: signature expired");
+        require(signatory != address(0), "TOKEN::delegateBySig: invalid signature");
+        require(nonce == nonces[signatory]++, "TOKEN::delegateBySig: invalid nonce");
+        require(now <= expiry, "TOKEN::delegateBySig: signature expired");
         return _delegate(signatory, delegatee);
     }
 
     /**
-     * @dev Gets the current votes balance for `account`
+     * @notice Gets the current votes balance for `account`
      * @param account The address to get votes balance
      * @return The number of current votes for `account`
      */
@@ -1041,7 +1012,7 @@ contract YeldToken is ERC20("Yeld Token", "YELD"), Ownable {
     }
 
     /**
-     * @dev Determine the prior number of votes for an account as of a block number
+     * @notice Determine the prior number of votes for an account as of a block number
      * @dev Block number must be a finalized block or else this function will revert to prevent misinformation.
      * @param account The address of the account to check
      * @param blockNumber The block number to get the vote balance at
@@ -1052,7 +1023,7 @@ contract YeldToken is ERC20("Yeld Token", "YELD"), Ownable {
         view
         returns (uint256)
     {
-        require(blockNumber < block.number, "EGG::getPriorVotes: not yet determined");
+        require(blockNumber < block.number, "TOKEN::getPriorVotes: not yet determined");
 
         uint32 nCheckpoints = numCheckpoints[account];
         if (nCheckpoints == 0) {
@@ -1089,7 +1060,7 @@ contract YeldToken is ERC20("Yeld Token", "YELD"), Ownable {
         internal
     {
         address currentDelegate = _delegates[delegator];
-        uint256 delegatorBalance = balanceOf(delegator); // balance of underlying EGGs (not scaled);
+        uint256 delegatorBalance = balanceOf(delegator); // balance of underlying TOKENs (not scaled);
         _delegates[delegator] = delegatee;
 
         emit DelegateChanged(delegator, currentDelegate, delegatee);
@@ -1125,7 +1096,7 @@ contract YeldToken is ERC20("Yeld Token", "YELD"), Ownable {
     )
         internal
     {
-        uint32 blockNumber = safe32(block.number, "EGG::_writeCheckpoint: block number exceeds 32 bits");
+        uint32 blockNumber = safe32(block.number, "TOKEN::_writeCheckpoint: block number exceeds 32 bits");
 
         if (nCheckpoints > 0 && checkpoints[delegatee][nCheckpoints - 1].fromBlock == blockNumber) {
             checkpoints[delegatee][nCheckpoints - 1].votes = newVotes;
@@ -1204,7 +1175,7 @@ contract MasterChef is Ownable, ReentrancyGuard {
     // address public vaultAddress;
 
     // Yeld tokens created per block.
-    uint256 public YeldPerBlock = 1 ether;
+    uint256 public YeldPerBlock = 0.015 ether;
 
     // Info of each pool.
     PoolInfo[] public poolInfo;
@@ -1450,7 +1421,5 @@ contract MasterChef is Ownable, ReentrancyGuard {
         startBlock = _startBlock;
     }
     
-    function addWhitelistedAddress(address _address) public onlyOwner {
-        addWhitelistedAddress(_address);
-    }
+    
 }
